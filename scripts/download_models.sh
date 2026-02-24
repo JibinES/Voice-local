@@ -39,6 +39,20 @@ download_with_retry() {
 # Ensure volume exists
 docker volume create voice-bot-models 2>/dev/null || true
 
+# Load HF_TOKEN from .env if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -f "$SCRIPT_DIR/../.env" ]; then
+    HF_TOKEN=$(grep -E "^HF_TOKEN=" "$SCRIPT_DIR/../.env" | cut -d= -f2- | xargs)
+fi
+
+# Prompt for token if not set
+if [ -z "${HF_TOKEN:-}" ]; then
+    warn "No HF_TOKEN found in .env"
+    info "Some models may be gated or downloads may be rate-limited without a token."
+    info "Get a token at: https://huggingface.co/settings/tokens"
+    read -rp "Enter Hugging Face token (or press Enter to skip): " HF_TOKEN
+fi
+
 info "Downloading all models into Docker volume 'voice-bot-models'..."
 info "Total download size: ~30-35GB. This may take a while."
 echo ""
@@ -46,10 +60,17 @@ echo ""
 docker run --rm \
     -v voice-bot-models:/models \
     -e HF_HUB_ENABLE_HF_TRANSFER=1 \
+    ${HF_TOKEN:+-e HF_TOKEN="$HF_TOKEN"} \
     python:3.11-slim bash -c '
 set -e
 
 pip install --quiet huggingface_hub[hf_transfer] ctranslate2 transformers
+
+# Login if token is provided
+if [ -n "${HF_TOKEN:-}" ]; then
+    echo "Logging in to Hugging Face..."
+    huggingface-cli login --token "$HF_TOKEN" --add-to-git-credential 2>/dev/null || true
+fi
 
 echo ""
 echo "=== [1/3] Downloading GPT-OSS-20B (~13GB) ==="
