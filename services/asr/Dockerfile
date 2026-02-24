@@ -2,19 +2,19 @@ FROM nvidia/cuda:12.8.0-devel-ubuntu22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install Python 3.11 and pip
+# Install Python 3.12 (required by speaches) and pip
 RUN apt-get update && apt-get install -y \
     software-properties-common \
     curl \
     git \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-venv \
-    python3.11-dev \
-    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.12 \
+    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install speaches (formerly faster-whisper-server) and ctranslate2
