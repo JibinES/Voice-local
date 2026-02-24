@@ -59,25 +59,16 @@ log "GPU detected: $GPU_NAME ($GPU_MEMORY)"
 
 # Check nvidia-container-toolkit
 if ! docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi &>/dev/null; then
-    warn "nvidia-container-toolkit may not be configured."
-    warn "Run: bash scripts/setup_host.sh"
-    read -p "Continue anyway? (y/N) " -n 1 -r
-    echo
-    [[ $REPLY =~ ^[Yy]$ ]] || exit 1
+    error "nvidia-container-toolkit is not configured."
+    error "Ask your sysadmin to install it: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html"
+    exit 1
 fi
 log "nvidia-container-toolkit working"
 
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 2: Start NVIDIA MPS
-# ─────────────────────────────────────────────────────────────────
-info "Starting NVIDIA MPS for GPU sharing..."
-bash scripts/start_mps.sh || warn "MPS may already be running"
-echo ""
-
-# ─────────────────────────────────────────────────────────────────
-# Step 3: Create model cache volume
+# Step 2: Create model cache volume
 # ─────────────────────────────────────────────────────────────────
 info "Creating model cache volume..."
 docker volume create voice-bot-models 2>/dev/null || true
@@ -85,14 +76,14 @@ log "Volume 'voice-bot-models' ready"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 4: Download all models
+# Step 3: Download all models
 # ─────────────────────────────────────────────────────────────────
 info "Downloading models (this may take a while on first run)..."
 bash scripts/download_models.sh
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 5: Build Docker images
+# Step 4: Build Docker images
 # ─────────────────────────────────────────────────────────────────
 info "Building Docker images..."
 docker compose build
@@ -100,7 +91,7 @@ log "All images built successfully"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 6: Start all services
+# Step 5: Start all services
 # ─────────────────────────────────────────────────────────────────
 info "Starting all services..."
 docker compose up -d
@@ -108,7 +99,7 @@ log "All services starting"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 7: Wait for health checks
+# Step 6: Wait for health checks
 # ─────────────────────────────────────────────────────────────────
 info "Waiting for services to become healthy..."
 
@@ -140,7 +131,7 @@ done
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 8: Print status
+# Step 7: Print status
 # ─────────────────────────────────────────────────────────────────
 echo "============================================================"
 echo "  Voice Bot — Service Status"

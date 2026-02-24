@@ -16,7 +16,7 @@ Build a multilingual voice agent that supports real-time conversation in **6 lan
 - **CUDA**: 12.8+ required (mandatory for Blackwell/sm_120)
 - **Host requirements**: Only NVIDIA driver (570.x+) and Docker with `nvidia-container-toolkit`
 - **Base Docker image**: `nvidia/cuda:12.8.0-devel-ubuntu22.04`
-- **GPU sharing**: Use NVIDIA MPS (Multi-Process Service) across containers — MIG is NOT available on consumer GPUs
+- **GPU sharing**: All containers use `--gpus all` and share the single GPU via default CUDA memory allocation. No MPS or MIG needed — the voice pipeline is sequential (ASR → LLM → TTS), so only one model actively computes at a time. Each container reserves its own VRAM portion via `--gpu-memory-utilization` caps.
 - **PyTorch**: Must use nightly `2.9.0+cu128` (stable PyTorch has incomplete Blackwell support)
 - **vLLM**: Must be built from source with `TORCH_CUDA_ARCH_LIST="12.0"` and `VLLM_FLASH_ATTN_VERSION=2` (Flash Attention 3 does not work on Blackwell yet)
 
@@ -83,7 +83,7 @@ LLM  (GPT-OSS-20B vLLM)           15 GB  ←  --gpu-memory-utilization 0.46875 (
 TTS  (svara-TTS v1 internal vLLM)  ~6 GB  ←  VLLM_GPU_MEMORY_UTILIZATION=0.2
      (+ SNAC decoder)              ~1 GB
 ASR  (IndicWhisper INT8)           ~4 GB
-CUDA/MPS overhead                  ~2 GB
+CUDA overhead                      ~2 GB
 ──────────────────────────────────────────────────────────────
 TOTAL                             ~28 GB
 Headroom                           ~4 GB
@@ -98,7 +98,7 @@ Headroom                           ~4 GB
 ```
 ┌──────────────────────────────────────────────────────┐
 │                   RTX 5090 (32GB)                    │
-│                  NVIDIA MPS Enabled                  │
+│               Shared via --gpus all                  │
 │                                                      │
 │  ┌────────────────┐ ┌──────────────────┐ ┌───────────────┐│
 │  │  ASR Service    │ │  TTS Service     │ │  LLM Service  ││
@@ -175,7 +175,6 @@ voice-bot/
 │
 ├── scripts/
 │   ├── setup_host.sh               # Install nvidia-container-toolkit on host
-│   ├── start_mps.sh                # Start NVIDIA MPS daemon on host
 │   ├── download_models.sh          # Pre-download all model weights
 │   └── test_pipeline.sh            # End-to-end test with sample audio
 │
@@ -193,8 +192,7 @@ voice-bot/
 The `setup.sh` script should do the following in order:
 
 1. **Pre-flight checks**: Verify NVIDIA driver version (>=570.x), Docker installed, `nvidia-container-toolkit` installed, GPU detected as RTX 5090
-2. **Start NVIDIA MPS**: Run `nvidia-cuda-mps-control -d` on host for GPU sharing
-3. **Create model cache volume**: `docker volume create voice-bot-models` (persistent model storage)
+2. **Create model cache volume**: `docker volume create voice-bot-models` (persistent model storage)
 4. **Download ALL models upfront** (before any container starts). Use `huggingface-cli` inside a temporary download container. All models are saved to the shared `voice-bot-models` Docker volume so containers don't re-download on restart:
    ```bash
    # Run a temporary container to download all models into the shared volume
@@ -229,7 +227,6 @@ The `setup.sh` script should do the following in order:
 
 Each service must have:
 - `deploy.resources.reservations.devices` with `driver: nvidia, count: 1, capabilities: [gpu]`
-- `ipc: host` (required for MPS GPU sharing)
 - Shared model volume mounted at `/models`
 - Health check endpoint
 - Restart policy: `unless-stopped`
@@ -257,7 +254,7 @@ All three model servers expose **OpenAI-compatible APIs**, so Pipecat connects t
 ```bash
 # Use the official faster-whisper-server Docker image
 # Point it at the IndicWhisper model converted to CTranslate2 format
-docker run --gpus all --ipc=host -p 8001:8000 \
+docker run --gpus all -p 8001:8000 \
     -v /models:/models \
     -e WHISPER__MODEL=/models/indicwhisper-ct2 \
     -e WHISPER__COMPUTE_TYPE=int8 \
@@ -425,7 +422,6 @@ This UI runs in its own Docker container (no GPU) and is included in `docker-com
 4. **Set `TORCH_CUDA_ARCH_LIST="12.0"`** when building vLLM
 5. **Do NOT use TensorFlow** — known CUDA initialization failures on RTX 5090
 6. **Use `ubuntu22.04`** base images — 24.04 has driver compatibility issues
-7. **Always use `--ipc=host`** on Docker containers when using NVIDIA MPS
 
 ---
 
