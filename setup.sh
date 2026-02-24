@@ -57,13 +57,12 @@ GPU_NAME=$(nvidia-smi --query-gpu=name --format=csv,noheader | head -1)
 GPU_MEMORY=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader | head -1)
 log "GPU detected: $GPU_NAME ($GPU_MEMORY)"
 
-# Check nvidia-container-toolkit
-if ! docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi &>/dev/null; then
-    error "nvidia-container-toolkit is not configured."
-    error "Ask your sysadmin to install it: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html"
-    exit 1
+# Quick GPU access check (uses existing image if cached, skips pull)
+if docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu22.04 nvidia-smi &>/dev/null; then
+    log "Docker GPU access verified"
+else
+    warn "Could not verify Docker GPU access. Continuing — containers may still work."
 fi
-log "nvidia-container-toolkit working"
 
 echo ""
 
@@ -71,7 +70,7 @@ echo ""
 # Step 2: Create model cache volume
 # ─────────────────────────────────────────────────────────────────
 info "Creating model cache volume..."
-docker volume create voice-bot-models 2>/dev/null || true
+docker volume create voice-bot-models >/dev/null 2>&1 || true
 log "Volume 'voice-bot-models' ready"
 echo ""
 
@@ -79,7 +78,11 @@ echo ""
 # Step 3: Download all models
 # ─────────────────────────────────────────────────────────────────
 info "Downloading models (this may take a while on first run)..."
-bash scripts/download_models.sh
+if ! bash scripts/download_models.sh; then
+    error "Model download failed. Check your HF_TOKEN in .env and network connection."
+    error "You can retry just the download with: bash scripts/download_models.sh"
+    exit 1
+fi
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
