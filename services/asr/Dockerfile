@@ -17,9 +17,9 @@ RUN apt-get update && apt-get install -y \
     && update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install faster-whisper-server and ctranslate2
+# Install speaches (formerly faster-whisper-server) and ctranslate2
 RUN pip install --no-cache-dir \
-    faster-whisper-server[all]@git+https://github.com/fedirz/faster-whisper-server.git \
+    speaches[all]@git+https://github.com/fedirz/faster-whisper-server.git \
     ctranslate2
 
 # Create model directory
@@ -35,4 +35,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["python", "-m", "faster_whisper_server", "--config", "/app/config.yaml"]
+CMD ["python", "-m", "speaches", "--config", "/app/config.yaml"]
