@@ -1,0 +1,167 @@
+version: "3.9"
+
+services:
+  # ===========================================================================
+  # ASR Service — faster-whisper-server with IndicWhisper (INT8)
+  # ===========================================================================
+  asr:
+    build:
+      context: ./services/asr
+      dockerfile: Dockerfile
+    container_name: voice-bot-asr
+    ports:
+      - "${ASR_PORT:-8001}:8000"
+    volumes:
+      - voice-bot-models:/models:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - voice-bot-net
+
+  # ===========================================================================
+  # TTS Service — svara-TTS v1 (internal vLLM + SNAC + FastAPI)
+  # ===========================================================================
+  tts:
+    build:
+      context: ./services/tts
+      dockerfile: Dockerfile
+    container_name: voice-bot-tts
+    ports:
+      - "${TTS_PORT:-8002}:8002"
+    volumes:
+      - voice-bot-models:/models:ro
+    env_file:
+      - ./services/tts/.env
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - voice-bot-net
+
+  # ===========================================================================
+  # LLM Service — vLLM with GPT-OSS-20B (MXFP4)
+  # ===========================================================================
+  llm:
+    build:
+      context: ./services/llm
+      dockerfile: Dockerfile
+    container_name: voice-bot-llm
+    ports:
+      - "${LLM_PORT:-8000}:8000"
+    volumes:
+      - voice-bot-models:/models:ro
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - CUDA_VISIBLE_DEVICES=0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    ipc: host
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s
+    networks:
+      - voice-bot-net
+
+  # ===========================================================================
+  # Orchestrator — Pipecat voice pipeline (no GPU)
+  # ===========================================================================
+  orchestrator:
+    build:
+      context: ./services/orchestrator
+      dockerfile: Dockerfile
+    container_name: voice-bot-orchestrator
+    ports:
+      - "${ORCHESTRATOR_PORT:-9000}:9000"
+    environment:
+      - ASR_BASE_URL=http://asr:8000
+      - TTS_BASE_URL=http://tts:8002
+      - LLM_BASE_URL=http://llm:8000
+      - LLM_MODEL_NAME=${LLM_SERVED_MODEL_NAME:-gpt-oss-20b}
+      - ORCHESTRATOR_PORT=9000
+      - DEFAULT_VOICE=${TTS_DEFAULT_VOICE:-hi_female}
+    depends_on:
+      asr:
+        condition: service_healthy
+      tts:
+        condition: service_healthy
+      llm:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - voice-bot-net
+
+  # ===========================================================================
+  # Test UI — Browser-based push-to-talk interface (no GPU)
+  # ===========================================================================
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: voice-bot-ui
+    ports:
+      - "${UI_PORT:-3000}:3000"
+    depends_on:
+      orchestrator:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - voice-bot-net
+
+volumes:
+  voice-bot-models:
+    external: true
+
+networks:
+  voice-bot-net:
+    driver: bridge

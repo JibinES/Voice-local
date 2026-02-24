@@ -1,0 +1,48 @@
+# Models (large files, downloaded separately)
+models/
+*.bin
+*.pt
+*.pth
+*.onnx
+*.safetensors
+*.gguf
+
+# Environment secrets
+.env
+services/tts/.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Test artifacts
+tests/output/
+*.wav
+*.mp3
+!tests/sample_audio/*.wav

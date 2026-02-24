@@ -1,0 +1,12 @@
+model: /models/indicwhisper-ct2
+compute_type: int8
+device: cuda
+
+vad:
+  enabled: true
+  engine: silero
+
+language_detection:
+  enabled: true
+
+beam_size: 5
