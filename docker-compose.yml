@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   # ===========================================================================
-  # ASR Service — faster-whisper-server with IndicWhisper (INT8)
+  # ASR Service — speaches (faster-whisper-server) with Whisper Large v3
   # ===========================================================================
   asr:
     build:
@@ -37,6 +37,7 @@ services:
   # TTS Service — svara-TTS v1 (internal vLLM + SNAC + FastAPI)
   # ===========================================================================
   tts:
+    image: voice-bot-tts:latest
     build:
       context: ./services/tts
       dockerfile: Dockerfile
@@ -71,6 +72,7 @@ services:
   # LLM Service — vLLM with GPT-OSS-20B (MXFP4)
   # ===========================================================================
   llm:
+    image: voice-bot-llm:latest
     build:
       context: ./services/llm
       dockerfile: Dockerfile

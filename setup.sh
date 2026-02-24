@@ -86,15 +86,30 @@ fi
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 4: Build Docker images
+# Step 4: Build vLLM base image (shared by LLM + TTS, ~60-90 min first time)
 # ─────────────────────────────────────────────────────────────────
-info "Building Docker images..."
-docker compose build
-log "All images built successfully"
+if docker image inspect voice-bot-vllm-base:latest &>/dev/null; then
+    log "vLLM base image already built, skipping (delete with: docker rmi voice-bot-vllm-base)"
+else
+    info "Building vLLM base image (compiles CUDA kernels — this takes 60-90 min on first run)..."
+    if ! docker build -t voice-bot-vllm-base:latest ./services/vllm-base; then
+        error "vLLM base image build failed."
+        exit 1
+    fi
+    log "vLLM base image built successfully"
+fi
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 5: Start all services
+# Step 5: Build service Docker images
+# ─────────────────────────────────────────────────────────────────
+info "Building service images..."
+docker compose build
+log "All service images built successfully"
+echo ""
+
+# ─────────────────────────────────────────────────────────────────
+# Step 6: Start all services
 # ─────────────────────────────────────────────────────────────────
 info "Starting all services..."
 docker compose up -d
@@ -102,7 +117,7 @@ log "All services starting"
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 6: Wait for health checks
+# Step 7: Wait for health checks
 # ─────────────────────────────────────────────────────────────────
 info "Waiting for services to become healthy..."
 
@@ -134,7 +149,7 @@ done
 echo ""
 
 # ─────────────────────────────────────────────────────────────────
-# Step 7: Print status
+# Step 8: Print status
 # ─────────────────────────────────────────────────────────────────
 echo "============================================================"
 echo "  Voice Bot — Service Status"
