@@ -49,7 +49,7 @@ docker run "${DOCKER_ARGS[@]}" python:3.11-slim bash -c '
 set -e
 
 echo "Installing dependencies..."
-pip install --quiet huggingface_hub hf_transfer ctranslate2 transformers
+pip install --quiet huggingface_hub hf_transfer
 export HF_HUB_ENABLE_HF_TRANSFER=1
 
 # Login if token is provided
@@ -81,25 +81,15 @@ snapshot_download(\"kenpath/svara-tts-v1\", local_dir=\"/models/svara-tts-v1\")
 fi
 
 echo ""
-echo "=== [3/3] Downloading IndicWhisper + converting to CTranslate2 ==="
-if [ -d /models/indicwhisper-ct2 ] && [ "$(ls -A /models/indicwhisper-ct2 2>/dev/null)" ]; then
-    echo "IndicWhisper CT2 model already exists, skipping."
+echo "=== [3/3] Downloading Whisper Large v3 (pre-converted CTranslate2) ==="
+if [ -d /models/faster-whisper-large-v3 ] && [ "$(ls -A /models/faster-whisper-large-v3 2>/dev/null)" ]; then
+    echo "faster-whisper-large-v3 already exists, skipping."
 else
-    echo "Downloading IndicWhisper HuggingFace checkpoint..."
+    echo "Downloading Systran/faster-whisper-large-v3 (~3GB, already in CT2 format)..."
     python3 -c "
 from huggingface_hub import snapshot_download
-snapshot_download(\"ai4bharat/indicwhisper\", local_dir=\"/models/indicwhisper-hf\")
+snapshot_download(\"Systran/faster-whisper-large-v3\", local_dir=\"/models/faster-whisper-large-v3\")
 "
-
-    echo "Converting to CTranslate2 INT8 format..."
-    ct2-transformers-converter \
-        --model /models/indicwhisper-hf \
-        --output_dir /models/indicwhisper-ct2 \
-        --quantization int8 \
-        --force
-
-    echo "Cleaning up HuggingFace checkpoint..."
-    rm -rf /models/indicwhisper-hf
 fi
 
 echo ""
