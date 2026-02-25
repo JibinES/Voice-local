@@ -30,9 +30,19 @@ WORKDIR /app
 # Copy configuration
 COPY config.yaml /app/config.yaml
 
+ENV WHISPER__MODEL=/models/faster-whisper-large-v3
+ENV WHISPER__COMPUTE_TYPE=int8
+ENV WHISPER__INFERENCE_DEVICE=cuda
+ENV WHISPER__DEVICE_INDEX=0
+ENV WHISPER___UNSTABLE_VAD_FILTER=true
+ENV STT_MODEL_TTL=-1
+ENV VAD_MODEL_TTL=-1
+ENV UVICORN_HOST=0.0.0.0
+ENV UVICORN_PORT=8000
+
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["python", "-m", "speaches", "--config", "/app/config.yaml"]
+CMD ["uvicorn", "--factory", "--host", "0.0.0.0", "--port", "8000", "speaches.main:create_app"]
