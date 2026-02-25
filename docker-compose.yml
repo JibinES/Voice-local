@@ -3,9 +3,7 @@ services:
   # ASR Service — speaches (faster-whisper-server) with Whisper Large v3
   # ===========================================================================
   asr:
-    build:
-      context: ./services/asr
-      dockerfile: Dockerfile
+    image: ghcr.io/speaches-ai/speaches:latest-cuda
     container_name: voice-bot-asr
     ports:
       - "${ASR_PORT:-8001}:8000"
@@ -14,6 +12,13 @@ services:
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - CUDA_VISIBLE_DEVICES=0
+      - WHISPER__MODEL=/models/faster-whisper-large-v3
+      - WHISPER__COMPUTE_TYPE=int8
+      - WHISPER__INFERENCE_DEVICE=cuda
+      - WHISPER__DEVICE_INDEX=0
+      - ENABLE_UI=false
+      - STT_MODEL_TTL=-1
+      - VAD_MODEL_TTL=-1
     deploy:
       resources:
         reservations:
