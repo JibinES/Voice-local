@@ -9,7 +9,6 @@ models/
 
 # Environment secrets
 .env
-services/tts/.env
 
 # Python
 __pycache__/

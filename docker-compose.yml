@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # ===========================================================================
   # ASR Service — speaches (faster-whisper-server) with Whisper Large v3
