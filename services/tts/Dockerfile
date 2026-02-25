@@ -2,19 +2,25 @@ FROM voice-bot-vllm-base:latest
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install additional TTS dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     supervisor \
     ffmpeg \
+    libsndfile1 \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir snac fastapi uvicorn soundfile numpy aiohttp
-
-# Clone svara-tts-inference repo for the FastAPI app code
+# Clone svara-tts-inference repo
 RUN git clone --depth 1 https://github.com/Kenpath/svara-tts-inference.git /app \
     && rm -rf /app/.git
 
 WORKDIR /app
+
+# Install Python dependencies from repo's requirements.txt
+# Skip torch/vllm/flashinfer (already in base image) to avoid conflicts
+RUN grep -v -E '^(torch$|torchaudio|vllm|flashinfer)' requirements.txt > /tmp/filtered-requirements.txt \
+    && pip install --no-cache-dir -r /tmp/filtered-requirements.txt \
+    && pip install --no-cache-dir soundfile numpy \
+    && rm /tmp/filtered-requirements.txt
 
 # Copy supervisord configuration
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
